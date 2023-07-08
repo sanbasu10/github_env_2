@@ -1,0 +1,64 @@
+name: prod_deployment
+
+env:
+  REPO_NAME: ${{ github.event.repoprodory.name }}
+  Source_Branch : ${{github.head_ref}}
+  Target_Branch : ${{github.base_ref}}
+  PR_NUMBER : ${{ github.event.pull_request.number || github.event.issue.number }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  COMMIT_ID: ${{github.event.pull_request.head.sha}}
+  Event_Type: ${{github.event_name}}
+  Fetch_Depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request
+  pull_request:
+    branches : ['main']
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  prod_dev_deployment:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    environment: prod
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repoprodory under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: ${Fetch_Depth}
+
+      # Runs a single command using the runners shell
+      - name: Change Environment
+        run: echo "Deploying your changes to ndev."
+
+      # Runs a set of commands using the runners shell
+      - name: Change Info
+        id: change-info
+        run: |
+          echo "REPOprodORY_NAME=${REPO_NAME}"
+          echo "Source Branch=${Source_Branch}"
+          echo "Target Branch=${Target_Branch}"
+          echo "Pull Request Number=${PR_NUMBER}"
+          echo "Commit ID=${COMMIT_ID}"
+          echo "Event Type=${Event_Type}"
+          echo "Fetch Depth=${Fetch_Depth}"
+          
+   
+      - name: Get changed files
+        id: changed-files
+        run: |
+            if ['${{github.event_name}}' -eq 'pull_request'] ; then
+                changed_files=$(git diff --name-only -r HEAD^1 HEAD | xargs)
+                changed_files=$(git diff --name-only $(git rev-list --max-parents=0 HEAD) ${{ github.event.after }} | xargs)
+            else
+                changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | xargs)
+            fi
+            echo "Following Files have been changed"
+            echo ${changed_files}
